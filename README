@@ -1,0 +1,14 @@
+Sebelum menjalankan script ini, pasti GNU/Linux anda sudah terinstall aplikasi
+iptables, arptables beserta pendukungnya seperti arping dan arp dan pastikan
+bahwa anda terhubung ke Internet
+
+Untuk menjalankan script ini lakukan langkah berikut:
+
+ chmod +x AntiMATA.sh
+ ./AntiMATA.sh
+
+Terima kasih...
+Kritik dan saran yang membangun silakan kirimkan ke:
+
+http://www.facebook.com/Hari.Soedibyo
+http://www.twitter.com/Hari.Soedibyo

@@ -1,0 +1,238 @@
+#!/bin/sh
+#
+# INFO: Hanya untuk PC Desktop atau penggunaan pribadi saja atau bisa disebut 
+#	sebagai personal firewall menggunakan iptables dan arptables.
+#
+# Script dibuat hanya untuk mempermudah saya melindungi diri dari serangan
+# orang yang rakus Bandwidth dengan menganiaya orang lain. Meskipun di internet
+# sudah banyak script dan tutorial untuk menangkal serangan NetCut tapi hasilnya
+# membuat kecewa. Contoh aplikasi ArpOn tidak sanggup lagi menghadapi NetCut
+# terbaru. Trik dengan membuat IP static dan ARP statik pun tidak berhasil.
+#
+# Script ini sudah di ujicoba dengan aplikasi nmap, WiFi Killer, dan NetCut.
+# Dengan menjalankan script ini maka MAC dan IP Address kita tidak akan muncul
+# di NetCut dan WiFi Killer. Meskipun muncul dan di putus, koneksi tetap lancar.
+# Jika di scan menggunakan nmap maka sedikit informasi yang akan ditampilkan 
+# atau bisa dikatakan tidak ada informasi yang bisa di dapatkan (persepsi).
+#
+# Cara untuk mendapatkan IP dan MAC Address pengguna yang terhubung ke jaringan:
+# 
+# 	: nmap -sP 192.168.1.0/24
+#
+# Cobalah analisa setelah dan sebelum di pasang firewall dengan cara berikut:	
+# 
+#	: nmap <ip-target>
+#	: nmap -P0 -O -p 1-1024 -T insane -sT <ip-target>
+#	: nmap -P0 -O -p 1-1024s -T insane -sX <ip-target>
+#	: nmap -P0 -O -p 1-1024 -T insane -sU <ip-target>
+# 
+# Di tulis oleh Hari Sudibyo (Abu Thalhah ArRaziin) yang teraniaya oleh pemakai
+# Windows Bajakan yang menginstall NetCut dan Cain Abel.
+#
+# Blog		: http://sohibuna.blogspot.com
+# FaceBox	: http://www.facebook.com/Hari.Soedibyo
+# Twitter	: http://www.twitter.com/Hari.Soedibyo
+#
+# Script ini boleh di modifikasi, diperbaiki disebarluaskan tanpa menghilangkan
+# identitas penulis script yang masih bodoh yang kurang paham dengan pemrograman
+# 
+
+# Cek jika bukan root maka keluar..
+ROOTUID=0
+if [ "$UID" -ne "$ROOTUID" ]; then 
+	clear
+	echo " [+]--------------------------------------------------------------[+]"
+	echo " [+]                                                              [+]"
+	echo " [+]       AntiMATA v.01 harus dijalankan oleh superuser          [+]"
+	echo " [+]    Anda harus login sebagai root atau menggunakan sudo       [+]"
+	echo " [+]                                                              [+]"
+	echo " [+]--------------------------------------------------------------[+]"
+	echo "" 
+	exit 0
+fi
+
+# Cari path aplikasi, dan yang terbaik memasukan path sesuai lokasi aplikasi
+ARP="`which arp`"
+ROUTE="`which route`"
+ARPING="`which arping`"
+NETSTAT="`which netstat`"
+IFCONFIG="`which ifconfig`"
+IPTABLES="`which iptables`"
+ARPTABLES="`which arptables`"
+
+function introheader(){
+	clear
+	echo " [+]--------------------------------------------------------------[+]"
+	echo " [+] ..::Bismillahirahmaanirrahim:::..          AntiMATA v.01     [+]"
+	echo " [+]                                                              [+]"
+	echo " [+] Script ini digunakan untuk melindungi komputer dari serangan [+]" 
+	echo " [+] NetCut, WiFi Killer dan aplikasi spoofing lain yang dapat    [+]"
+	echo " [+] menggangu dan mengancam keamanan data selama berinternet     [+]"
+	echo " [+]                                                              [+]"
+	return
+}
+
+function introfooter(){
+	echo " [+]                                                              [+]"
+	echo " [+] Ditulis oleh Hari Sudibyo (Abu Thalhah ArRaziin)             [+]"
+	echo " [+]                                                              [+]"
+	echo " [+] http://sohibuna.blogspot.com                                 [+]"
+	echo " [+] http://www.facebook.com/Hari.Soedibyo                        [+]" 
+	echo " [+] http://www.twitter.com/Hari.Soedibyo                         [+]"
+	echo " [+]--------------------------------------------------------------[+]"
+	return
+}
+
+function infoheader(){
+	clear
+	echo "-------------------------------------------------------"
+	echo "MAC Laptop anda	: $MACTOP"
+	echo "IP Laptop anda	: $IPTOP"
+	echo "MAC Gateway	: $MACGW"
+	echo "IP Gateway	: $IPGW"
+	echo "-------------------------------------------------------"
+	echo ""
+	return
+}
+
+function infofooter(){
+	echo ""
+	echo "Jaringan anda sudah diamankan oleh Abu Thalhah ArRaziin"
+	echo "Copyleft @ SOHIBUNA.blogspot.COM"
+	echo ""
+	return
+}
+
+function otomatis1(){
+	# Mencari adapter yang terhubung ke Gateway (eth0 or wlan0)
+	ADP="`ip route list | awk '/default/{print $5}'`"
+	# Mencari MAC dan IP Address Laptop
+	IPTOP="`ip addr show $ADP | grep inet | head -n1 | awk '/inet/{print $2}' | cut -d "/" -f1`"
+	MACTOP="`ip addr show $ADP | awk '/ether/{print $2}'`"
+	# Mencari MAC Address dan IP Gateway
+	IPGW="`ip route list | awk '/default/{print $3}'`"
+	MACGW="`$ARPING -I $ADP -f $IPGW | grep Unicast | cut -d " " -f5 | cut -d "[" -f2 | cut -d "]" -f1`"
+	return 
+	}
+
+function otomatis2(){
+	# Mencari adapter yang terhubung ke Gateway (eth0 or wlan0)
+	ADP="`route -n | grep ^0.0.0.0  | awk '{print $8}'`"
+	# Mencari MAC dan IP Address Laptop
+	IPTOP="`$IFCONFIG $ADP | grep inet |  head -n1 | awk '/inet/{print $2}'`"
+	MACTOP="`$IFCONFIG $ADP | grep ether | awk '/ether/{print $2}'`"
+	# Mencari MAC Address dan IP Gateway
+	IPGW="`netstat -rn | grep ^0.0.0.0 | cut -c17-32`"
+	MACGW="`$ARPING -I $ADP -f $IPGW | grep Unicast | cut -d " " -f5 | cut -d "[" -f2 | cut -d "]" -f1`"
+	return 
+	}
+	
+function manual(){
+	echo " [+]"
+	echo -n " [+] Adapater yang digunakan <ex: wlan0 | eth0>: "
+	read ADP
+	echo -n " [+] Masukan MAC Gateway <ex: 00:11:22:33:44:55>: "
+	read MACGW
+	echo -n " [+] Masukan IP Gateway <ex: 192.168.1.1>: "
+	read IPGW
+	return 
+	}
+
+function firewall(){
+	echo " [+] Membersihkan aturan iptables..."
+	$IPTABLES -F
+	$IPTABLES -X
+	echo " [+] Blokir semua koneksi dari dalam maupun luar..."
+	$IPTABLES -P INPUT DROP
+	$IPTABLES -P OUTPUT DROP
+	$IPTABLES -P FORWARD DROP
+	echo " [+] Pengaturan rantai (chain) INPUT..."
+	$IPTABLES -A INPUT -m conntrack --ctstate INVALID -j DROP
+	$IPTABLES -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+	$IPTABLES -A INPUT -i lo -j ACCEPT
+	echo " [+] Pengaturan rantai (chain) OUTPUT..."
+	$IPTABLES -A OUTPUT -m conntrack --ctstate INVALID -j DROP
+	$IPTABLES -A OUTPUT -m conntrack --ctstate NEW,RELATED,ESTABLISHED -j ACCEPT
+	$IPTABLES -A OUTPUT -o lo -j ACCEPT
+	return
+}
+
+function anticut(){
+	echo " [+] Membersihkan aturan arptables..."
+	$ARPTABLES -F
+	$ARPTABLES -X
+	echo " [+} Menjaga diri dari serangan NetCut..."
+	$ARPTABLES -P INPUT DROP
+	$ARPTABLES -P OUTPUT DROP
+	$ARPTABLES -A INPUT -s $IPGW --source-mac $MACGW -j ACCEPT
+	$ARPTABLES -A OUTPUT -d $IPGW --destination-mac $MACGW -j ACCEPT
+	echo " [+] Jadikan IP Gateway dan MAC statik..."
+	$ARP -s $IPGW $MACGW
+	return
+}
+
+function normal(){
+	$IPTABLES -F
+	$IPTABLES -X
+	$IPTABLES -P INPUT ACCEPT
+	$IPTABLES -P OUTPUT ACCEPT
+	$IPTABLES -P FORWARD ACCEPT
+	$ARPTABLES -F
+	$ARPTABLES -X
+	$ARPTABLES -P INPUT ACCEPT
+	$ARPTABLES -P OUTPUT ACCEPT
+	$ARPTABLES -P FORWARD ACCEPT
+	return
+}
+
+introheader
+echo " [+] Semoga bermanfaat bagi pengguna GNU/Linux                    [+]"
+introfooter
+echo ""
+echo "     Pilih metode pengaturan keamanan komputer anda: "
+echo "       1. Otomatis (Metode I)      4. Pengaturan Manual"
+echo "       2. Otomatis (Metode II)     5. Clear Configuration"
+echo "       3. Hanya Firewall           6. Keluar [ENTER]"
+echo ""
+echo -n "     Masukan pilihan (pilih 3 jika arptables belum di install): "
+read pilihan
+clear
+
+case $pilihan in
+	"1")otomatis1
+	infoheader
+	firewall
+	anticut
+	infofooter
+	;;
+	"2")otomatis2
+	infoheader
+	firewall
+	anticut
+	infofooter
+	;;
+	"3")introheader
+	firewall
+	infofooter
+	;;
+	"4")introheader
+	echo " [+] Anda memilih KONFIGURASI MANUAL. Sebelum melanjutkan, catat  [+]"
+	echo " [+] IP beserta MAC Address Gateway                               [+]"
+	manual
+	echo " [+]"
+	firewall
+	anticut
+	infofooter
+	;; 
+	"5")	normal
+	echo " [+]--------------------------------------------------------------[+]"
+	echo " [+] Konfigurasi sudah dibersihkan dan jaringan tidak terproteksi [+]"
+	echo " [+] Silakan di periksa dengan perintah:                          [+]"
+	echo " [+]  1. arptables -L                                             [+]"
+	echo " [+]  2. iptables -L                                              [+]"
+	introfooter
+	echo ""
+	;;
+	*) exit 0;;
+esac
+
