@@ -4,8 +4,8 @@ bahwa anda terhubung ke Internet
 
 Untuk menjalankan script ini lakukan langkah berikut:
 
- chmod +x AntiMATA.sh
- ./AntiMATA.sh
+ chmod +x AntiMATA
+ ./AntiMATA
 
 Terima kasih...
 Kritik dan saran yang membangun silakan kirimkan ke:
