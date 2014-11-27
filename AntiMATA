@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # INFO: Hanya untuk PC Desktop atau penggunaan pribadi saja atau bisa disebut 
 #	sebagai personal firewall menggunakan iptables dan arptables.
